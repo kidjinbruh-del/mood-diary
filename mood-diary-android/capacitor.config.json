@@ -1,0 +1,8 @@
+{
+  "appId": "com.example.mooddiary",
+  "appName": "Дневник настроения",
+  "webDir": ".",
+  "android": {
+    "allowMixedContent": false
+  }
+}

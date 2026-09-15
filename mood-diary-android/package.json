@@ -1,0 +1,8 @@
+{
+  "name": "mood-diary",
+  "version": "0.1.0",
+  "description": "Дневник настроения — Android обертка (Capacitor) поверх веб-прототипа",
+  "scripts": {
+    "build:apk": "echo 'APK собирается в GitHub Actions, см. .github/workflows/android.yml'"
+  }
+}

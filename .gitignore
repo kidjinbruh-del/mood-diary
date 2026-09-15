@@ -1,0 +1,14 @@
+# локальные личные данные (не публиковать)
+real.db
+real-entries.json
+seed_real.py
+analyze_real.py
+*.db
+
+# node
+node_modules/
+dist/
+
+# os
+Thumbs.db
+.DS_Store
