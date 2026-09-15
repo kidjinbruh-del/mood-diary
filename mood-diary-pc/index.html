@@ -108,6 +108,17 @@
   .btn:active { transform: scale(.95); }
   .btn-primary { background: linear-gradient(120deg, var(--good), var(--neutral)); border: none; color: #06110c; font-weight: 700; }
   [data-grad="off"] .btn-primary { background: var(--good); }
+  .btn-danger { border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
+  #onboard { position: fixed; inset: 0; background: rgba(6,8,16,.62); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 99; padding: 24px; }
+  #onboard .card { max-width: 460px; width: 100%; }
+  #onboard ol { margin: 8px 0 16px; padding-left: 20px; display: grid; gap: 10px; }
+  #onboard li { font-size: 14px; line-height: 1.55; color: var(--text); }
+  #onboard .step-no { font-family: var(--font-m); color: var(--extra); font-size: 12px; }
+  .sheat { display: grid; gap: 3px; overflow-x: auto; padding-bottom: 6px; }
+  .sheat-row { display: grid; grid-template-columns: 56px repeat(var(--cols, 7), minmax(22px, 1fr)); gap: 3px; align-items: center; margin-bottom: 3px; }
+  .sheat-label { font-family: var(--font-m); font-size: 12px; color: var(--muted); }
+  .sheat-cell { height: 24px; border-radius: 5px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-family: var(--font-m); font-size: 11px; font-weight: 600; color: #fff; }
+  .sheat-hl { background: transparent; border: none; color: var(--muted); font-size: 11px; height: 16px; }
   .btn .icon { width: 15px; height: 15px; color: inherit; }
   /* heatmap-мозаика: выходные шире */
   #heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; }
@@ -208,12 +219,14 @@
   </div>
 
   <section class="card">
-    <div class="sec-head"><span class="sec-no">01</span><h2>Дни</h2><span class="rule"></span></div>
+    <div class="sec-head"><span class="sec-no">01</span><h2>Дни</h2><span class="rule"></span><div class="seg" id="periodSeg" style="margin:0"></div></div>
     <p class="hint">Оценки по шкале 1–7 ставишь сам. Незаполненные дни — пропуск: на графике это разрыв, а не соседние точки.</p>
+    <div class="field" style="max-width:340px"><label>найти <input type="text" id="searchInput" placeholder="заметки, теги, дата..."></label></div>
     <div id="dayCards"></div>
     <div class="actions">
       <button class="btn" id="exportJson">JSON</button>
       <button class="btn" id="exportCsv">CSV</button>
+      <button class="btn btn-danger" id="clearBtn">Стереть всё</button>
       <button class="btn btn-primary" id="pdfBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF для психолога</button>
     </div>
   </section>
@@ -243,6 +256,8 @@
     <div class="sec-head"><span class="sec-no">03</span><h2>Сентябрь ’26</h2><span class="rule"></span><span style="font-family:var(--font-m);font-size:11px;color:var(--muted)">календарь</span></div>
     <div id="heatmap"></div>
     <p class="hint" style="margin:8px 0 0">Контур — есть замер. Заливка — средняя оценка за день.</p>
+    <div style="margin-top:18px;font-size:12px;color:var(--muted);font-family:var(--font-m)">часы × дни · средняя оценка</div>
+    <div class="sheat" id="slotHeat"></div>
   </section>
 
   <section class="card">
@@ -298,6 +313,18 @@
   </section>
 </main>
 
+<div id="onboard">
+  <div class="card">
+    <div class="sec-head"><span class="sec-no">начни</span><h2>Просто так</h2><span class="rule"></span></div>
+    <ol>
+      <li><span class="step-no">01</span> Оцени состояние — одна кнопка вверху. Больше не нужно ничего.</li>
+      <li><span class="step-no">02</span> Если есть силы — добавь тег или заметку. Это не обязательно.</li>
+      <li><span class="step-no">03</span> Дневник покажет картину фактами: проценты хороших дней, паттерны. Без оценок, диагнозов и советов.</li>
+    </ol>
+    <div class="actions"><button class="btn btn-primary" id="onboardBtn">Начать</button></div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <section id="report"></section>
 
@@ -318,10 +345,34 @@ const KEY = 'mood_diary_v3';
 const DESIGN_KEY = 'mood_diary_design';
 const REM_KEY = 'mood_diary_reminder';
 const BEST_KEY = 'mood_diary_best_streak';
+const PERIOD_KEY = 'mood_diary_period';
+const SEEN_KEY = 'mood_diary_seen';
+function getPeriod() { return localStorage.getItem(PERIOD_KEY) || 'all'; }
+function filterPeriod(d) {
+  const p = getPeriod();
+  if (p === 'all') return d;
+  const cut = Date.now() - (p === '7d' ? 7 : 30) * 864e5;
+  return d.filter(r => new Date(r.date + 'T00:00:00').getTime() >= cut);
+}
+function syncPeriod() {
+  const s = document.getElementById('periodSeg'); s.innerHTML = '';
+  [['all', 'всё'], ['30d', 'месяц'], ['7d', 'неделя']].forEach(([v, n]) => {
+    const b = document.createElement('button'); b.textContent = n;
+    if (v === getPeriod()) b.classList.add('active');
+    b.onclick = () => { localStorage.setItem(PERIOD_KEY, v); syncPeriod(); render(); };
+    s.appendChild(b);
+  });
+}
 const DEFAULT_DESIGN = { theme: 'dark', palette: 'emerald', font: 'grotesk', density: 'comfortable', motion: 'full', radius: 14, shadow: 'soft', grad: 'on' };
 
 let selMood = null, selEnergy = null, selSlot = 'day', selSleep = null, selSport = null;
 let selTags = new Set();
+let SEARCH = '';
+function matchesQ(r) {
+  if (!SEARCH) return true;
+  const q = SEARCH.toLowerCase();
+  return (r.note || '').toLowerCase().includes(q) || (r.date + '').includes(q) || (r.tags || []).some(t => t.toLowerCase().includes(q));
+}
 let DESIGN = { ...DEFAULT_DESIGN };
 
 // ---------- оформление ----------
@@ -389,7 +440,7 @@ function buildSeed() {
 }
 function load() { try { const v = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(v) && v.length) return v; } catch (e) {} return null; }
 function saveAll(d) { localStorage.setItem(KEY, JSON.stringify(d)); }
-function ensureSeed() { let d = load(); if (!d) { d = buildSeed(); saveAll(d); } return d; }
+function ensureSeed() { return load() || []; }
 function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 2200); }
 function avg(a) { return a.length ? a.reduce((s, x) => s + x, 0) / a.length : 0; }
 function dayIdx(dateStr) { return Math.round((new Date(dateStr + 'T00:00:00') - new Date('2026-09-01T00:00:00')) / 864e5); }
@@ -559,8 +610,9 @@ function renderHero() {
 
 function renderDayCards(data) {
   const box = document.getElementById('dayCards'); box.innerHTML = '';
+  const d0 = SEARCH ? data.filter(matchesQ) : data;
   const byDate = {};
-  data.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
+  d0.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
   Object.keys(byDate).sort().forEach(date => {
     const d = document.createElement('div'); d.className = 'daycard';
     const ms = byDate[date].filter(r => r.mood != null).map(r => r.mood);
@@ -644,6 +696,33 @@ function renderHeatmap(data) {
     el.title = k + (a ? (a.moods.length ? ' — ' + avg(a.moods).toFixed(1) : ' — без оценки') : ' — нет записи');
     el.textContent = d;
     box.appendChild(el);
+  }
+}
+
+function renderSlotHeat(data) {
+  const box = document.getElementById('slotHeat'); box.innerHTML = '';
+  const rated = data.filter(r => r.mood != null && r.ts);
+  if (!rated.length) { const s = document.createElement('div'); s.className = 'hint'; s.textContent = 'Появится, когда будут оценки с временем (ts).'; box.appendChild(s); return; }
+  const days = [...new Set(rated.map(r => r.date))].sort().slice(-31);
+  box.style.setProperty('--cols', days.length);
+  const hr = document.createElement('div'); hr.className = 'sheat-row';
+  const empty = document.createElement('div'); empty.className = 'sheat-label'; empty.textContent = 'час\\день';
+  hr.appendChild(empty);
+  days.forEach(d => { const c = document.createElement('div'); c.className = 'sheat-cell sheat-hl'; c.textContent = +d.slice(8); c.title = d; hr.appendChild(c); });
+  box.appendChild(hr);
+  for (let h = 0; h < 24; h++) {
+    const row = document.createElement('div'); row.className = 'sheat-row';
+    const lab = document.createElement('div'); lab.className = 'sheat-label'; lab.textContent = String(h).padStart(2, '0') + ':00';
+    row.appendChild(lab);
+    days.forEach(d => {
+      const cell = document.createElement('div'); cell.className = 'sheat-cell';
+      const ms = rated.filter(r => r.date === d && new Date(r.ts).getHours() === h).map(r => r.mood);
+      const a = ms.length ? avg(ms) : null;
+      if (a) { cell.style.background = colorFor(a); cell.textContent = a.toFixed(0); cell.title = d + ' ' + String(h).padStart(2, '0') + ':00 — ' + a.toFixed(1); }
+      else { cell.style.background = 'transparent'; cell.title = d + ' ' + String(h).padStart(2, '0') + ':00 — нет оценки'; }
+      row.appendChild(cell);
+    });
+    box.appendChild(row);
   }
 }
 
@@ -828,6 +907,11 @@ function renderInsights(data) {
   data.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
   const days = Object.keys(byDate).sort();
   add('Замеров ' + data.length + ' · дней ' + days.length + ' (' + days.map(d => d.slice(5)).join(', ') + '). Шкала 1–7.');
+  const lastD = days[days.length - 1];
+  if (lastD) {
+    const gap = Math.round((new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00') - new Date(lastD + 'T00:00:00')) / 864e5);
+    if (gap >= 3) add('Последняя запись — ' + gap + ' дн. назад. Дневник подождёт: возвращайся, когда захочешь.');
+  }
   const rated = data.filter(r => r.mood != null);
   if (!rated.length) add('Оценок пока нет. Оцени дни в карточках — включатся график, теги и сводка.');
   else {
@@ -869,7 +953,8 @@ function renderInsights(data) {
 
 function renderRows(data) {
   const tb = document.getElementById('rows'); tb.innerHTML = '';
-  [...data].sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot)).forEach(r => {
+  const d0 = SEARCH ? data.filter(matchesQ) : data;
+  [...d0].sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot)).forEach(r => {
     const tr = document.createElement('tr');
     const td = t => { const c = document.createElement('td'); c.textContent = t; return c; };
     tr.appendChild(td(r.date));
@@ -910,9 +995,19 @@ function renderReport(data) {
 function render() {
   const d = ensureSeed();
   d.sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot));
+  const fd = filterPeriod(d);
   renderHero();
-  renderDayCards(d); renderHeatmap(d); renderChart(d); renderPie(d); renderStats(d); renderSignals(d); renderInsights(d); renderRows(d); renderReport(d);
+  renderDayCards(d); renderHeatmap(fd); renderSlotHeat(fd); renderChart(fd); renderPie(fd); renderStats(fd); renderSignals(fd); renderInsights(fd); renderRows(d); renderReport(fd);
 }
+
+document.getElementById('clearBtn').onclick = () => {
+  if (!confirm('Стереть ВСЕ записи дневника? Действие необратимо.')) return;
+  localStorage.removeItem(KEY);
+  SEARCH = ''; const si = document.getElementById('searchInput'); if (si) si.value = '';
+  selMood = null; selEnergy = null; selSleep = null; selSport = null; selTags.clear();
+  buildScales(); render(); toast('Все записи удалены');
+};
+document.getElementById('searchInput').addEventListener('input', e => { SEARCH = e.target.value.trim(); render(); });
 
 document.getElementById('exportJson').onclick = () => {
   const blob = new Blob([localStorage.getItem(KEY) || '[]'], { type: 'application/json' });
@@ -942,6 +1037,13 @@ loadDesign();
   syncDesignUI();
 })();
 buildScales(); render();
+syncPeriod();
+(function () {
+  if (localStorage.getItem(SEEN_KEY)) return;
+  const o = document.getElementById('onboard');
+  o.style.display = 'flex';
+  document.getElementById('onboardBtn').onclick = () => { o.style.display = 'none'; localStorage.setItem(SEEN_KEY, '1'); };
+})();
 </script>
 </body>
 </html>
