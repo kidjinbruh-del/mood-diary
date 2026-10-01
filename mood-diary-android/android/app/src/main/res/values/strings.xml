@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Дневник настроения</string>
+    <string name="title_activity_main">Дневник настроения</string>
+    <string name="package_name">ru.mooddiary</string>
+    <string name="custom_url_scheme">ru.mooddiary</string>
+</resources>

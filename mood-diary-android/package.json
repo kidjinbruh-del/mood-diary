@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Дневник настроения — Android обертка (Capacitor) поверх веб-прототипа",
   "scripts": {
-    "build:apk": "echo 'APK собирается в GitHub Actions, см. .github/workflows/android.yml'"
+    "sync": "cap sync",
+    "build:apk": "cap sync && cd android && gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/filesystem": "^8.1.3",
+    "@capacitor/share": "^8.0.2"
   }
 }

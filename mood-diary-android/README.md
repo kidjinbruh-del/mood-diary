@@ -1,48 +1,59 @@
 # Дневник настроения — Android
 
-Веб-прототип из `../mood-diary-pc/index.html` уже скопирован сюда как `index.html`.
-Этот же файл заворачивается в нативное Android-приложение через Capacitor.
+Веб-приложение из `../mood-diary-pc/index.html` завернуто в нативное
+Android-приложение через Capacitor (WebView). Один код для ПК (браузер)
+и телефона, поведение на телефоне проверено на устройстве.
 
-## Почему так
-- Один код для ПК (браузер) и Android (WebView).
-- Данные пока в localStorage. Для релиза заменить на SQLite (@capacitor/preferences или @capacitor-community/sqlite).
+## Структура
 
-## Как собрать APK локально (нужны Node 20+ и Android Studio)
+- `www/index.html` — копия `../mood-diary-pc/index.html`, именно она
+  попадает в APK. Источник правды — pc-файл: правится он, затем копируется
+  сюда и выполняется `npx cap sync android`.
+- `capacitor.config.json` — `appId: ru.mooddiary`, `webDir: www`.
+- `android/` — сгенерированный нативный проект (`npx cap add android`),
+  коммитится в репозиторий, кроме `build/` и `local.properties`.
+- `mood-diary.jks` + `keystore.properties` — ключ подписи релиза и пароли.
+  В репозиторий НЕ попадают (см. корневой `.gitignore`): иначе любой смог
+  бы выпускать обновления от вашего имени. Храните копию ключа отдельно.
+
+## Отличия телефонной версии от браузерной
+
+В WebView нет части браузерных API, поэтому в приложении (`window.Capacitor`):
+
+- кнопки JSON/CSV пишут файл во внутренний кэш и открывают системный диалог
+  «Поделиться» (плагины `@capacitor/filesystem`, `@capacitor/share`);
+- кнопка «PDF для психолога» вместо `window.print()` отправляет текстовую
+  сводку отчёта через «Поделиться»;
+- блок напоминаний скрыт: WebView не поддерживает Notification API,
+  кнопки были бы мёртвыми. Напоминания пока работают только в браузере
+  при открытой вкладке.
+
+В браузере поведение не меняется: там этот код не выполняется.
+
+## Сборка
+
+Нужны Node 20+, JDK 21 и Android SDK (платформа 36). Путь к SDK — в
+`android/local.properties` (`sdk.dir=...`), файл локальный.
+
 ```powershell
-npm i -g @capacitor/cli
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap add android
-npx cap sync
-# открыть android/ в Android Studio -> Build -> Build APK
+# 1. Обновить витрину из исходника и синхронизировать
+Copy-Item ..\mood-diary-pc\index.html .\www\index.html -Force
+npx cap sync android
+
+# 2. Debug APK для проверки на телефоне
+$env:JAVA_HOME="<путь к JDK 21>"
+.\android\gradlew.bat -p android :app:assembleDebug
+# -> android/app/build/outputs/apk/debug/app-debug.apk
+
+# 3. Подписанный релиз (нужны mood-diary.jks и keystore.properties рядом)
+.\android\gradlew.bat -p android :app:assembleRelease
+# -> android/app/build/outputs/apk/release/app-release.apk
 ```
 
-## Как выложить APK на GitHub (рекомендую)
-1. Залить репозиторий на GitHub.
-2. Добавить workflow `.github/workflows/android.yml` (пример ниже) — он соберёт debug-APK в облаке при каждом пуше.
-3. APK забирать в `Actions -> Artifacts`, а релизный — прикрепить в `Releases`.
-4. Для раздачи людям подписать release-ключом (хранить в GitHub Secrets).
+APK подписан схемами v1+v2: часть прошивок не принимает пакеты только
+с подписью v2.
 
-Debug-APK ставится на телефон с разрешением "установка из неизвестных источников".
-На iOS этот путь не работает — там нужен App Store / TestFlight.
+## Совместимость
 
-## Пример workflow (.github/workflows/android.yml)
-```yaml
-name: android-apk
-on: [push]
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 17 }
-      - run: npm i -g @capacitor/cli && npm install @capacitor/core @capacitor/cli @capacitor/android
-      - run: npx cap add android; npx cap sync
-        working-directory: mood-diary-android
-      - run: ./gradlew assembleDebug
-        working-directory: mood-diary-android/android
-      - uses: actions/upload-artifact@v4
-        with: { name: app-debug, path: mood-diary-android/android/app/build/outputs/apk/debug/app-debug.apk }
-```
+Android 7.0 и выше (minSdk 24 — минимум Capacitor 8), targetSdk 35.
+Google Play Services не нужны. Проверено на TECNO BF7 (Android 12).

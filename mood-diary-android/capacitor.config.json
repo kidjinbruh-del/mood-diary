@@ -1,7 +1,7 @@
 {
-  "appId": "com.example.mooddiary",
+  "appId": "ru.mooddiary",
   "appName": "Дневник настроения",
-  "webDir": ".",
+  "webDir": "www",
   "android": {
     "allowMixedContent": false
   }

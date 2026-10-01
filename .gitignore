@@ -9,6 +9,12 @@ analyze_real.py
 node_modules/
 dist/
 
+# ключ подписи и пароли — только локально, иначе любой сможет
+# выпускать обновления от вашего имени
+*.jks
+*.keystore
+keystore.properties
+
 # os
 Thumbs.db
 .DS_Store

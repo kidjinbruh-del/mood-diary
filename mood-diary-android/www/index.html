@@ -60,6 +60,12 @@
   .theme-btn { margin-left: auto; background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; min-width: 40px; height: 34px; padding: 0 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 12px; font-family: var(--font-m); }
   .theme-btn:hover { color: var(--text); border-color: var(--neutral); }
   main { max-width: 1020px; margin: 0 auto; padding: 14px 22px 60px; display: grid; gap: var(--gap); }
+  /* Карточки не должны распирать сетку шире экрана: иначе таблица журнала
+     (8 колонок) растягивала всю страницу на телефоне. */
+  /* В приложении напоминаний пока нет (WebView не умеет в Notification API):
+     блок скрывается, чтобы не было мёртвых кнопок. В браузере всё как было. */
+  body.app #remRow { display: none; }
+  main > * { min-width: 0; }
   /* HERO: асимметрия — дата слева крупно, вопрос справа */
   .hero { display: grid; grid-template-columns: minmax(220px, .9fr) 1.4fr; gap: 34px; align-items: end; padding: 26px 0 8px; border-bottom: 1px solid var(--line); }
   .hero-date .d { font-family: var(--font-d); font-size: clamp(84px, 14vw, 150px); line-height: .85; letter-spacing: -.04em; }
@@ -109,7 +115,9 @@
   .btn-primary { background: linear-gradient(120deg, var(--good), var(--neutral)); border: none; color: #06110c; font-weight: 700; }
   [data-grad="off"] .btn-primary { background: var(--good); }
   .btn-danger { border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
-  #onboard { position: fixed; inset: 0; background: rgba(6,8,16,.62); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 99; padding: 24px; }
+  /* Плоское затемнение вместо blur: дешевле на слабых мобильных GPU,
+     а выглядит так же. */
+  #onboard { position: fixed; inset: 0; background: rgba(4,6,12,.82); display: none; align-items: center; justify-content: center; z-index: 99; padding: 24px; }
   #onboard .card { max-width: 460px; width: 100%; }
   #onboard ol { margin: 8px 0 16px; padding-left: 20px; display: grid; gap: 10px; }
   #onboard li { font-size: 14px; line-height: 1.55; color: var(--text); }
@@ -208,7 +216,7 @@
       <p class="kicker" id="heroKicker">сегодня</p>
       <h2>Как ты себя чувствуешь <em>прямо сейчас?</em></h2>
       <div class="quick" id="quickRow"></div>
-      <div class="field">
+      <div class="field" id="remRow">
         <label>утро <input type="time" id="remAm" value="09:00"></label>
         <button class="btn" id="remAmBtn">вкл</button>
         <label>вечер <input type="time" id="remPm" value="21:00"></label>
@@ -1009,17 +1017,48 @@ document.getElementById('clearBtn').onclick = () => {
 };
 document.getElementById('searchInput').addEventListener('input', e => { SEARCH = e.target.value.trim(); render(); });
 
-document.getElementById('exportJson').onclick = () => {
-  const blob = new Blob([localStorage.getItem(KEY) || '[]'], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mood-diary.json'; a.click();
-};
-document.getElementById('exportCsv').onclick = () => {
+function buildCsv() {
   const d = ensureSeed();
   let csv = 'date,slot,mood,energy,sleep,sport,tags,anxiety,chars\n';
   d.forEach(r => { csv += r.date + ',' + r.slot + ',' + (r.mood ?? '') + ',' + (r.energy ?? '') + ',' + (r.sleep ?? '') + ',' + (r.sport ?? '') + ',"' + (r.tags || []).join('|') + '",' + countAnx(r.note || '') + ',' + (r.note || '').length + '\n'; });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'mood-diary.csv'; a.click();
+  return csv;
+}
+function downloadBlob(text, name, type) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+}
+document.getElementById('exportJson').onclick = () => {
+  downloadBlob(localStorage.getItem(KEY) || '[]', 'mood-diary.json', 'application/json');
+};
+document.getElementById('exportCsv').onclick = () => {
+  downloadBlob(buildCsv(), 'mood-diary.csv', 'text/csv');
 };
 document.getElementById('pdfBtn').onclick = () => { render(); window.print(); };
+
+// ---- Android-приложение (Capacitor): скачивание и печать идут через системный шаринг ----
+// В WebView нет ни скачивания blob-ссылок, ни window.print(), поэтому в приложении
+// кнопки экспорта пишут файл во внутренний кэш и открывают стандартный диалог
+// «Поделиться». В браузере этот блок не выполняется, поведение не меняется.
+(function () {
+  if (!window.Capacitor || !window.Capacitor.Plugins) return;
+  document.body.classList.add('app');
+  const { Filesystem, Share } = window.Capacitor.Plugins;
+  if (!Filesystem || !Share) return;
+  async function shareFile(name, text) {
+    try {
+      const f = await Filesystem.writeFile({ path: name, data: text, directory: 'CACHE', encoding: 'utf8' });
+      await Share.share({ title: name, url: f.uri });
+    } catch (e) { toast('Не удалось отправить файл'); }
+  }
+  document.getElementById('exportJson').onclick = () => {
+    shareFile('mood-diary.json', localStorage.getItem(KEY) || '[]');
+  };
+  document.getElementById('exportCsv').onclick = () => { shareFile('mood-diary.csv', buildCsv()); };
+  document.getElementById('pdfBtn').onclick = () => {
+    render();
+    const t = document.getElementById('report').innerText.trim() || 'Пока нет данных для отчёта.';
+    shareFile('mood-report.txt', 'Дневник настроения — сводка для специалиста\n\n' + t);
+  };
+})();
 
 // init
 loadDesign();
