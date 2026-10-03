@@ -62,9 +62,6 @@
   main { max-width: 1020px; margin: 0 auto; padding: 14px 22px 60px; display: grid; gap: var(--gap); }
   /* Карточки не должны распирать сетку шире экрана: иначе таблица журнала
      (8 колонок) растягивала всю страницу на телефоне. */
-  /* В приложении напоминаний пока нет (WebView не умеет в Notification API):
-     блок скрывается, чтобы не было мёртвых кнопок. В браузере всё как было. */
-  body.app #remRow { display: none; }
   main > * { min-width: 0; }
   /* HERO: асимметрия — дата слева крупно, вопрос справа */
   .hero { display: grid; grid-template-columns: minmax(220px, .9fr) 1.4fr; gap: 34px; align-items: end; padding: 26px 0 8px; border-bottom: 1px solid var(--line); }
@@ -234,6 +231,8 @@
     <div class="actions">
       <button class="btn" id="exportJson">JSON</button>
       <button class="btn" id="exportCsv">CSV</button>
+      <button class="btn" id="importBtn">Импорт</button>
+      <input type="file" id="importFile" accept=".json,.csv,application/json,text/csv" style="display:none">
       <button class="btn btn-danger" id="clearBtn">Стереть всё</button>
       <button class="btn btn-primary" id="pdfBtn"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF для психолога</button>
     </div>
@@ -261,7 +260,7 @@
   </section>
 
   <section class="card">
-    <div class="sec-head"><span class="sec-no">03</span><h2>Сентябрь ’26</h2><span class="rule"></span><span style="font-family:var(--font-m);font-size:11px;color:var(--muted)">календарь</span></div>
+    <div class="sec-head"><span class="sec-no">03</span><h2 id="calTitle">Календарь</h2><span class="rule"></span><button class="btn" id="calPrev" style="padding:4px 12px">←</button><button class="btn" id="calNext" style="padding:4px 12px">→</button></div>
     <div id="heatmap"></div>
     <p class="hint" style="margin:8px 0 0">Контур — есть замер. Заливка — средняя оценка за день.</p>
     <div style="margin-top:18px;font-size:12px;color:var(--muted);font-family:var(--font-m)">часы × дни · средняя оценка</div>
@@ -680,10 +679,19 @@ function renderDayCards(data) {
   });
 }
 
+const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+// Выбранный месяц календаря. null = текущий: раньше календарь был прибит
+// гвоздями к сентябрю 2026 и в октябре показывал пустоту.
+let calY = null, calM = null;
+function calYearMonth() {
+  if (calY == null) { const n = new Date(); calY = n.getFullYear(); calM = n.getMonth(); }
+  return [calY, calM];
+}
 function renderHeatmap(data) {
   const box = document.getElementById('heatmap'); box.innerHTML = '';
   ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'].forEach(d => { const s = document.createElement('div'); s.className = 'dow'; s.textContent = d; box.appendChild(s); });
-  const y = 2026, m = 8;
+  const [y, m] = calYearMonth();
+  document.getElementById('calTitle').textContent = MONTHS_RU[m] + ' ’' + String(y).slice(2);
   const first = new Date(y, m, 1);
   const offset = (first.getDay() + 6) % 7;
   for (let i = 0; i < offset; i++) box.appendChild(document.createElement('div'));
@@ -1034,6 +1042,120 @@ document.getElementById('exportCsv').onclick = () => {
 };
 document.getElementById('pdfBtn').onclick = () => { render(); window.print(); };
 
+// ---- Импорт своих выгрузок (JSON/CSV): пара к экспорту ----
+// Нужен, чтобы восстановить дневник после переустановки или перенести
+// записи. Чужие форматы (Daylio) не читаем — только то, что выгрузили сами.
+function importNum(v, min, max) {
+  if (v === '' || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= min && n <= max ? n : null;
+}
+function normalizeImportRow(o) {
+  if (!o || typeof o !== 'object') return null;
+  const date = String(o.date || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const slot = o.slot === 'am' || o.slot === 'day' || o.slot === 'pm' ? o.slot : 'day';
+  return {
+    id: date + '__' + slot,
+    date, slot,
+    ts: typeof o.ts === 'string' && o.ts ? o.ts : date + 'T00:00:00',
+    mood: importNum(o.mood, 1, 7),
+    energy: importNum(o.energy, 1, 7),
+    sleep: importNum(o.sleep, 0, 24),
+    sport: o.sport === '' || o.sport == null ? null : o.sport,
+    tags: Array.isArray(o.tags)
+      ? o.tags.map(String).map(s => s.trim()).filter(Boolean)
+      : String(o.tags || '').split('|').map(s => s.trim()).filter(Boolean),
+    note: String(o.note || ''),
+  };
+}
+function parseImportCsv(text) {
+  // Разбор с кавычками: поле тегов в нашей выгрузке закавычено.
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  const t = text.replace(/^\uFEFF/, '');
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inQ && c === '"' && t[i + 1] === '"') { field += '"'; i++; }
+    else if (c === '"') inQ = !inQ;
+    else if (!inQ && c === ',') { row.push(field); field = ''; }
+    else if (!inQ && (c === '\n' || c === '\r')) {
+      if (c === '\r' && t[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(x => x.trim() !== '')) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) throw new Error('Файл пуст');
+  const head = rows[0].map(h => h.trim().toLowerCase());
+  const ci = name => head.indexOf(name);
+  if (ci('date') < 0) throw new Error('В CSV нет колонки date');
+  return rows.slice(1).map(r => {
+    const o = {};
+    ['date', 'slot', 'mood', 'energy', 'sleep', 'sport', 'tags'].forEach(k => {
+      if (ci(k) >= 0) o[k] = (r[ci(k)] || '').trim();
+    });
+    return normalizeImportRow(o);
+  }).filter(Boolean);
+}
+function parseImportFile(name, text) {
+  const trimmed = text.trimStart();
+  if (/\.json$/i.test(name || '') || trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    let v;
+    try { v = JSON.parse(text); } catch (e) { throw new Error('Файл повреждён: это не JSON'); }
+    const arr = Array.isArray(v) ? v : v.entries || v.measurements;
+    if (!Array.isArray(arr)) throw new Error('В JSON нет списка записей');
+    return arr.map(normalizeImportRow).filter(Boolean);
+  }
+  return parseImportCsv(text);
+}
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    let rows;
+    try { rows = parseImportFile(f.name, String(rd.result || '')); }
+    catch (err) { toast('Файл не прочитан: ' + err.message); return; }
+    if (!rows.length) { toast('В файле нет годных записей'); return; }
+    const data = ensureSeed();
+    const have = new Set(data.map(r => r.id));
+    const fresh = rows.filter(r => !have.has(r.id));
+    const dup = rows.length - fresh.length;
+    // Теги из файла, которых нет в словаре, добавляются сами — иначе записи
+    // приехали бы, а метки потерялись бы.
+    const known = new Set(allTags().map(t => t.toLowerCase()));
+    const newTags = [...new Set(fresh.flatMap(r => r.tags))].filter(t => !known.has(t.toLowerCase()));
+    let msg = 'Новых записей: ' + fresh.length + ', уже есть: ' + dup + '.';
+    if (newTags.length) msg += ' Новые метки: ' + newTags.join(', ') + '.';
+    // В CSV выгружается длина заметки, а не текст: предупреждаем, чтобы не
+    // было сюрприза. В JSON всё целиком, там предупреждение ни к чему.
+    if (/\.csv$/i.test(f.name)) msg += ' В CSV заметок нет — они хранятся только в JSON.';
+    msg += ' Добавить новые?';
+    if (!confirm(msg)) return;
+    fresh.forEach(r => data.push(r));
+    if (newTags.length) {
+      const cur = customTags();
+      localStorage.setItem(CTAGS_KEY, JSON.stringify([...cur, ...newTags.filter(t => !cur.includes(t))]));
+    }
+    data.sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot));
+    saveAll(data); render();
+    toast('Добавлено: ' + fresh.length);
+  };
+  rd.readAsText(f);
+});
+function calStep(dm) {
+  const [y, m] = calYearMonth();
+  const d = new Date(y, m + dm, 1);
+  calY = d.getFullYear(); calM = d.getMonth();
+  render();
+}
+document.getElementById('calPrev').onclick = () => calStep(-1);
+document.getElementById('calNext').onclick = () => calStep(1);
+
 // ---- Android-приложение (Capacitor): скачивание и печать идут через системный шаринг ----
 // В WebView нет ни скачивания blob-ссылок, ни window.print(), поэтому в приложении
 // кнопки экспорта пишут файл во внутренний кэш и открывают стандартный диалог
@@ -1041,6 +1163,13 @@ document.getElementById('pdfBtn').onclick = () => { render(); window.print(); };
 (function () {
   if (!window.Capacitor || !window.Capacitor.Plugins) return;
   document.body.classList.add('app');
+  const StatusBar = window.Capacitor.Plugins.StatusBar;
+  if (StatusBar) {
+    // Белый системный верх на тёмном приложении выглядит сломанным:
+    // красим его в цвет фона, текст оставляем светлым.
+    StatusBar.setBackgroundColor({ color: '#0a0e1a' }).catch(() => {});
+    StatusBar.setStyle({ style: 'LIGHT' }).catch(() => {});
+  }
   const { Filesystem, Share } = window.Capacitor.Plugins;
   if (!Filesystem || !Share) return;
   async function shareFile(name, text) {
@@ -1058,6 +1187,74 @@ document.getElementById('pdfBtn').onclick = () => { render(); window.print(); };
     const t = document.getElementById('report').innerText.trim() || 'Пока нет данных для отчёта.';
     shareFile('mood-report.txt', 'Дневник настроения — сводка для специалиста\n\n' + t);
   };
+
+  // ---- Напоминания в приложении: нативный планировщик вместо Web Notification ----
+  // WebView не знает Notification API, поэтому браузерная ветка здесь молча
+  // ничего не делает. Вместо неё — ежедневные уведомления через плагин:
+  // переживают закрытие приложения и перезагрузку (у плагина свой приёмник).
+  const LocalNotifications = window.Capacitor.Plugins.LocalNotifications;
+  if (LocalNotifications) {
+    const REM_IDS = { am: 11, pm: 12 };
+    const REM_TEXT = {
+      am: 'Как ты себя чувствуешь утром?',
+      pm: 'Оцени день — это 15 секунд.',
+    };
+    async function remNativeApply(exact) {
+      const r = getRem();
+      for (const which of ['am', 'pm']) {
+        try { await LocalNotifications.cancel({ notifications: [{ id: REM_IDS[which] }] }); } catch (e) {}
+        if (!r[which].on || !r[which].time) continue;
+        const parts = String(r[which].time).split(':');
+        const hour = Number(parts[0]), minute = Number(parts[1]);
+        if (!Number.isInteger(hour) || !Number.isInteger(minute)) continue;
+        await LocalNotifications.schedule({ notifications: [{
+          id: REM_IDS[which],
+          title: 'Дневник настроения',
+          body: REM_TEXT[which],
+          schedule: { on: { hour, minute }, repeats: true, allowWhileIdle: exact !== false },
+        }] });
+      }
+    }
+    async function remNativeToggle(which) {
+      const r = getRem();
+      if (!r[which].on) {
+        try {
+          const st = await LocalNotifications.requestPermissions();
+          if (st.display !== 'granted') { toast('Уведомления не разрешены'); return; }
+        } catch (e) { toast('Уведомления недоступны'); return; }
+      }
+      const inp = document.getElementById(which === 'am' ? 'remAm' : 'remPm');
+      if (inp.value) r[which].time = inp.value;
+      r[which].on = !r[which].on;
+      setRem(r);
+      try {
+        await remNativeApply(true);
+      } catch (e) {
+        // Точные будильники запрещены системой: пробуем неточные, иначе
+        // напоминание не встанет вообще. Опоздание возможно — честно говорим.
+        try { await remNativeApply(false); toast('Точные будильники запрещены: напоминание может опоздать'); }
+        catch (e2) { toast('Не удалось поставить напоминание'); }
+        return;
+      }
+      toast(r[which].on ? 'Напоминание включено' : 'Напоминание выключено');
+    }
+    document.getElementById('remAmBtn').onclick = () => remNativeToggle('am');
+    document.getElementById('remPmBtn').onclick = () => remNativeToggle('pm');
+    // Смена времени при включённом напоминании перепланирует его сразу:
+    // иначе человек менял бы время, а звонило бы по старому.
+    [['remAm', 'am'], ['remPm', 'pm']].forEach(([id, which]) => {
+      document.getElementById(id).addEventListener('change', () => {
+        const r = getRem();
+        const v = document.getElementById(id).value;
+        if (!v || !r[which].on) return;
+        r[which].time = v;
+        setRem(r);
+        remNativeApply(true).catch(() => remNativeApply(false).catch(() => {}));
+      });
+    });
+    // При каждом запуске сверяем планировщик с сохранённым состоянием.
+    remNativeApply(true).catch(() => remNativeApply(false).catch(() => {}));
+  }
 })();
 
 // init
