@@ -192,6 +192,64 @@
   #report { display: none; }
   @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
   @media print { header, main, .topline { display: none !important; } #report { display: block !important; color: #000; padding: 20px; font-size: 13px; } #report h1 { font-size: 20px; } #report table { width: 100%; border-collapse: collapse; } #report td, #report th { border: 1px solid #999; padding: 5px; font-size: 12px; } }
+
+  /* ============ СОН: отдельный блок, вне нумерации 01–10 ============
+     Своя палитра и своя рамка. Блок не меняется вместе с палитрой
+     приложения: тема сна должна выглядеть одинаково при любых настройках
+     оформления, иначе «вечерний» блок становится изумрудным или оранжевым. */
+  .sleep-wrap { max-width: 1180px; margin: 30px auto 0; padding: 0 var(--pad); }
+  .sleep-card {
+    --sl-a: #7c6bd8; --sl-b: #a99bf2; --sl-ink: #eeecff; --sl-dim: #a49dd0; --sl-line: rgba(124,107,216,.30);
+    position: relative; overflow: hidden; border-radius: 26px; padding: 26px 26px 22px;
+    border: 1px solid var(--sl-line); color: var(--sl-ink);
+    background:
+      radial-gradient(110% 80% at 86% -12%, rgba(124,107,216,.34), transparent 62%),
+      radial-gradient(80% 60% at 6% 108%, rgba(88,132,214,.20), transparent 60%),
+      linear-gradient(168deg, #191638, #11142c 58%, #0c0f20);
+    box-shadow: 0 28px 64px -32px rgba(124,107,216,.62);
+  }
+  [data-theme="light"] .sleep-card {
+    --sl-ink: #1e1a37; --sl-dim: #5b5486; --sl-line: rgba(124,107,216,.34);
+    background:
+      radial-gradient(110% 80% at 86% -12%, rgba(124,107,216,.20), transparent 62%),
+      linear-gradient(168deg, #ffffff, #f5f3fe 66%, #eff1fb);
+    box-shadow: 0 24px 54px -32px rgba(90,80,180,.5);
+  }
+  .sleep-moon { position: absolute; right: 18px; top: 14px; width: 74px; height: 74px; opacity: .9; pointer-events: none; }
+  [data-theme="light"] .sleep-moon { opacity: .55; }
+  .s-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .s-head h2 { font-family: var(--font-d); font-size: 26px; letter-spacing: -.02em; margin: 0; }
+  .s-badge { font-family: var(--font-m); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--sl-dim); border: 1px solid var(--sl-line); border-radius: 999px; padding: 4px 10px; }
+  .s-lead { color: var(--sl-dim); font-size: 13.5px; margin: 6px 0 18px; max-width: 70ch; }
+  .s-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .s-stat { background: rgba(255,255,255,.05); border: 1px solid var(--sl-line); border-radius: 16px; padding: 13px 15px; }
+  [data-theme="light"] .s-stat { background: rgba(255,255,255,.72); }
+  .s-stat .v { font-family: var(--font-d); font-size: 26px; line-height: 1.05; letter-spacing: -.02em; }
+  .s-stat .k { font-size: 11.5px; color: var(--sl-dim); margin-top: 5px; }
+  .s-cmp { display: grid; gap: 10px; margin-bottom: 20px; }
+  .s-cmp-row { display: grid; grid-template-columns: 148px 1fr 62px; align-items: center; gap: 12px; font-size: 13px; }
+  .s-cmp-track { height: 12px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
+  [data-theme="light"] .s-cmp-track { background: rgba(30,26,55,.08); }
+  .s-cmp-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--sl-a), var(--sl-b)); }
+  .s-cmp-val { font-family: var(--font-m); font-size: 13px; text-align: right; color: var(--sl-ink); }
+  .s-cmp-row.dim { color: var(--sl-dim); }
+  .s-cmp-note { font-size: 11.5px; color: var(--sl-dim); margin: -4px 0 0 160px; }
+  .s-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(232px, 1fr)); gap: 16px; }
+  .s-col h3 { font-family: var(--font-m); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--sl-b); margin: 0 0 9px; }
+  .s-col ul { margin: 0; padding-left: 18px; font-size: 13.5px; line-height: 1.55; }
+  .s-col li { margin-bottom: 6px; }
+  .s-col li::marker { color: var(--sl-a); }
+  .s-set { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--sl-line);
+    display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+  .s-set label { display: grid; gap: 5px; font-size: 11.5px; color: var(--sl-dim); }
+  .s-set input, .s-set select { background: rgba(255,255,255,.06); border: 1px solid var(--sl-line);
+    color: var(--sl-ink); border-radius: 10px; padding: 9px 11px; font: inherit; font-size: 14px; }
+  [data-theme="light"] .s-set input, [data-theme="light"] .s-set select { background: #fff; }
+  .s-set .btn { background: linear-gradient(120deg, var(--sl-a), var(--sl-b)); border: none; color: #14102b; font-weight: 700; }
+  .s-state { font-size: 12px; color: var(--sl-dim); margin-left: auto; max-width: 42ch; text-align: right; }
+  @media (max-width: 640px) { .s-cmp-row { grid-template-columns: 1fr; } .s-cmp-note { margin-left: 0; } .sleep-moon { width: 54px; height: 54px; } }
 </style>
 </head>
 <body>
@@ -319,6 +377,100 @@
     </details>
   </section>
 </main>
+<div class="sleep-wrap">
+  <section class="sleep-card" id="sleepCard">
+    <svg class="sleep-moon" viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#efeaff"/><stop offset="1" stop-color="#a99bf2"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#mg)" d="M40 8a24 24 0 1 0 16 42A26 26 0 0 1 40 8Z"/>
+      <circle cx="49" cy="16" r="2.4" fill="#d9d2ff" opacity=".9"/>
+      <circle cx="56" cy="26" r="1.5" fill="#d9d2ff" opacity=".7"/>
+      <circle cx="45" cy="27" r="1.2" fill="#d9d2ff" opacity=".6"/>
+    </svg>
+
+    <div class="s-head">
+      <h2>Сон</h2>
+      <span class="s-badge">отдельный блок</span>
+    </div>
+    <p class="s-lead">
+      Сон — не отдельная от настроения тема, а половина него. Ниже — факты по
+      твоим же замерам, норма по возрасту и то, что реально помогает уснуть.
+      В конце — вечерняя плашка: мягкая подсказка, что пора.
+    </p>
+
+    <div class="s-stats">
+      <div class="s-stat"><div class="v" id="sAvg">—</div><div class="k">средний сон за период</div></div>
+      <div class="s-stat"><div class="v" id="sOk">—</div><div class="k">замеров со сном 7 ч и больше</div></div>
+      <div class="s-stat"><div class="v" id="sNights">—</div><div class="k">дней с отмеченным сном</div></div>
+    </div>
+
+    <div class="s-cols" style="margin-bottom:18px">
+      <div class="s-col" style="grid-column:1/-1">
+        <h3>Сон и оценка состояния</h3>
+        <div class="s-cmp">
+          <div class="s-cmp-row"><span>сон 7 ч и больше</span>
+            <div class="s-cmp-track"><div class="s-cmp-fill" id="sBarGood" style="width:0%"></div></div>
+            <span class="s-cmp-val" id="sValGood">—</span></div>
+          <div class="s-cmp-row dim"><span>меньше 7 ч</span>
+            <div class="s-cmp-track"><div class="s-cmp-fill" id="sBarBad" style="width:0%"></div></div>
+            <span class="s-cmp-val" id="sValBad">—</span></div>
+        </div>
+        <p class="s-cmp-note">Средняя оценка состояния в замерах с указанным сном. Совпадение, не причина.</p>
+      </div>
+    </div>
+
+    <div class="s-cols">
+      <div class="s-col">
+        <h3>Норма</h3>
+        <ul>
+          <li>7–9 ч — взрослому человеку.</li>
+          <li>9–12 ч — детям и подросткам.</li>
+          <li>Ниже 6 ч две ночи подряд — уже недосып.</li>
+          <li>Норма — это когда встаёшь без будильника.</li>
+        </ul>
+      </div>
+      <div class="s-col">
+        <h3>Как укладываться</h3>
+        <ul>
+          <li>Отбой в одно и то же время, включая выходные.</li>
+          <li>Свет вечером теплее и тусклее; яркий — это сигнал «ещё день».</li>
+          <li>Экран за час до сна: он сдвигает засыпание на 30–60 минут.</li>
+          <li>Кофеин не позже чем за 6–8 часов до отбоя.</li>
+          <li>Алкоголь засыпанию не помогает: он убирает сон в глубине.</li>
+          <li>Прохладная комната и проветренная перед сном.</li>
+        </ul>
+      </div>
+      <div class="s-col">
+        <h3>Признаки, что уже пора</h3>
+        <ul>
+          <li>Читаешь один абзац второй раз и не помнишь первый.</li>
+          <li>Зевота идёт волнами, веки тяжелеют.</li>
+          <li>Ошибки в простых словах и забытые мелочи.</li>
+          <li>«Второй вечер» — хочется лечь с телефоном.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="s-set">
+      <label>отбой <input type="time" id="sBed" value="23:00"></label>
+      <label>предупредить за
+        <select id="sLead">
+          <option value="0">в момент отбоя</option>
+          <option value="15">15 минут</option>
+          <option value="30" selected>30 минут</option>
+          <option value="60">1 час</option>
+        </select>
+      </label>
+      <button class="btn btn-primary" id="sBtn">включить плашку</button>
+      <button class="btn" id="sTest">показать сейчас</button>
+      <span class="s-state" id="sState">плашка выключена</span>
+    </div>
+  </section>
+</div>
+
 
 <div id="onboard">
   <div class="card">
@@ -564,7 +716,7 @@ document.getElementById('saveBtn').onclick = () => {
 })();
 
 function getRem() { try { const v = JSON.parse(localStorage.getItem(REM_KEY)); if (v && v.am) return v; } catch (e) {} return { am: { time: '09:00', on: false }, pm: { time: '21:00', on: false } }; }
-function setRem(r) { localStorage.setItem(REM_KEY, JSON.stringify(r)); syncRemUI(); }
+function setRem(r) { localStorage.setItem(REM_KEY, JSON.stringify(r)); syncRemUI(); if (typeof syncSleepUI === 'function') syncSleepUI(); }
 function syncRemUI() {
   const r = getRem();
   document.getElementById('remAm').value = r.am.time;
@@ -605,6 +757,241 @@ document.getElementById('remAmBtn').onclick = () => remToggle('am');
 document.getElementById('remPmBtn').onclick = () => remToggle('pm');
 setInterval(remCheck, 30000);
 syncRemUI();
+
+// ---- Сон: отдельный блок с фактами по замерам и вечерней плашкой --------
+// Три части: сбор статистики, разбор настроек, планировщик уведомления.
+const SLEEP_ID = 21;
+const SLEEP_TEST_ID = 22;
+const SLEEP_CHANNEL = 'sleep-night';
+// Подсказки идут в largeBody: в плашке поверх окон строка обрезается, и
+// длинный текст превращался в «Душ, стакан воды…».
+const SLEEP_TIPS = [
+  'Свет теплее, телефон в сторону.',
+  'Душ, стакан воды — и всё.',
+  'Проветри комнату, пусть будет прохладно.',
+  'Час без экранов — и сон придёт быстрее.',
+];
+
+// Короткая строка для плашки и полная — для раскрытого вида.
+function sleepMessage(preview) {
+  const lead = sleepLead();
+  const head = lead === 0 ? 'Пора отдыхать'
+    : lead < 30 ? 'Через ' + lead + ' минут отбой'
+      : lead === 60 ? 'Через час отбой'
+        : 'Через полчаса отбой';
+  const tip = SLEEP_TIPS[new Date().getDate() % SLEEP_TIPS.length];
+  return { body: head, large: (preview ? 'Предпросмотр. ' : head + '. ') + tip };
+}
+
+// Плагин достаётся сам: переменная LocalNotifications в коде ниже объявлена
+// внутри IIFE и наружу не видна — отсюда был ReferenceError, и плашка
+// молча не ставилась.
+function sleepPlugin() {
+  try {
+    const cap = window.Capacitor;
+    return (cap && cap.Plugins && cap.Plugins.LocalNotifications) || null;
+  } catch (e) { return null; }
+}
+
+function sleepLead() {
+  const v = parseInt(document.getElementById('sLead').value, 10);
+  return Number.isFinite(v) ? v : 30;
+}
+
+// Время срабатывания: отбой минус за сколько предупредить. Отбой после
+// полуночи — не редкость, поэтому считаем с переходом через сутки.
+function sleepFireAt() {
+  const [h, m] = String(document.getElementById('sBed').value || '23:00').split(':').map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return { hour: 22, minute: 30 };
+  let total = h * 60 + m - sleepLead();
+  total = ((total % 1440) + 1440) % 1440;
+  return { hour: Math.floor(total / 60), minute: total % 60 };
+}
+
+function renderSleep() {
+  const withSleep = ensureSeed().filter(r => r.sleep != null && r.sleep > 0);
+  const avgEl = document.getElementById('sAvg');
+  const okEl = document.getElementById('sOk');
+  const nEl = document.getElementById('sNights');
+  if (!withSleep.length) {
+    avgEl.textContent = '—'; okEl.textContent = '—'; nEl.textContent = '0';
+    document.getElementById('sValGood').textContent = 'нет замеров';
+    document.getElementById('sValBad').textContent = 'нет замеров';
+    document.getElementById('sBarGood').style.width = '0%';
+    document.getElementById('sBarBad').style.width = '0%';
+    return;
+  }
+  const sum = withSleep.reduce((a, r) => a + r.sleep, 0);
+  const enough = withSleep.filter(r => r.sleep >= 7).length;
+  avgEl.textContent = (sum / withSleep.length).toFixed(1) + ' ч';
+  okEl.textContent = enough + ' из ' + withSleep.length;
+  nEl.textContent = String(new Set(withSleep.map(r => r.date)).size);
+
+  const rated = withSleep.filter(r => r.mood != null);
+  const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+  const good = mean(rated.filter(r => r.sleep >= 7).map(r => r.mood));
+  const bad = mean(rated.filter(r => r.sleep < 7).map(r => r.mood));
+  const top = Math.max(good || 0, bad || 0, 7);
+  const put = (idVal, idBar, v) => {
+    document.getElementById(idVal).textContent = v == null ? 'нет замеров' : v.toFixed(1);
+    document.getElementById(idBar).style.width = (v == null ? 0 : Math.round(v / top * 100)) + '%';
+  };
+  put('sValGood', 'sBarGood', good);
+  put('sValBad', 'sBarBad', bad);
+}
+
+function syncSleepUI() {
+  const r = getRem();
+  const s = r.sleep || { time: '23:00', lead: 30, on: false };
+  document.getElementById('sBed').value = s.time || '23:00';
+  document.getElementById('sLead').value = String(s.lead == null ? 30 : s.lead);
+  document.getElementById('sBtn').textContent = s.on ? 'выключить плашку' : 'включить плашку';
+  const at = sleepFireAt();
+  const hh = String(at.hour).padStart(2, '0') + ':' + String(at.minute).padStart(2, '0');
+  document.getElementById('sState').textContent = s.on
+    ? 'плашка придёт в ' + hh + ' · мягкий сигнал поверх окон'
+    : 'плашка выключена · время отбоя и предупреждение можно задать заранее';
+}
+
+// Разрешение на уведомления.
+//
+// Плагин объявляет POST_NOTIFICATIONS и запрашивает его перед постановкой.
+// На части прошивок (встречается на TECNO: версия 12, а платформа ещё без
+// этого разрешения) запрос падает с «Unknown permission». Раньше это
+// читалось как «уведомления недоступны», и плашка не ставилась вообще, хотя
+// система уведомления разрешает. Поэтому: запрос упал — идём дальше и пробуем
+// поставить; точный ответ даст планировщик, у него есть ошибка
+// NOTIFICATIONS_DISABLED.
+async function sleepEnsurePermission() {
+  const LN = sleepPlugin();
+  if (!LN) return false;
+  try {
+    const st = await LN.checkPermissions();
+    if (st.display === 'granted') return true;
+  } catch (e) { /* проверка тоже может падать — не повод отказывать */ }
+  try {
+    const st = await LN.requestPermissions();
+    return st.display === 'granted';
+  } catch (e) {
+    return true;
+  }
+}
+
+// Канал создаётся один раз: настройки канала на Android меняются только при
+// пересоздании, поэтому id отдельный — чтобы новая важность и свой звук
+// применились. Важность 4 — это и есть плашка поверх окон.
+async function sleepChannel(LN) {
+  try {
+    await LN.createChannel({
+      id: SLEEP_CHANNEL,
+      name: 'Вечерняя плашка сна',
+      description: 'Мягкое напоминание, что пора ложиться спать',
+      importance: 4,
+      sound: 'night_chime',
+      vibration: false,
+      lights: false,
+    });
+  } catch (e) {}
+}
+
+async function sleepNativeApply(exact) {
+  const LN = sleepPlugin();
+  if (!LN) return;
+  const r = getRem();
+  const s = r.sleep;
+  try { await LN.cancel({ notifications: [{ id: SLEEP_ID }] }); } catch (e) {}
+  if (!s || !s.on) return;
+  const at = sleepFireAt();
+  const msg = sleepMessage(false);
+  await sleepChannel(LN);
+  await LN.schedule({ notifications: [{
+    id: SLEEP_ID,
+    channelId: SLEEP_CHANNEL,
+    title: 'Скоро отбой',
+    body: msg.body,
+    largeBody: msg.large,
+    smallIcon: 'stat_sleep',
+    iconColor: '#8b7bd8',
+    threadIdentifier: 'sleep',
+    schedule: { on: { hour: at.hour, minute: at.minute }, repeats: true, allowWhileIdle: exact !== false },
+  }] });
+}
+
+async function sleepToggle() {
+  const r = getRem();
+  const s = r.sleep || { time: '23:00', lead: 30, on: false };
+  if (!s.on && !await sleepEnsurePermission()) {
+    toast('Уведомления выключены — включите их в настройках телефона');
+    return;
+  }
+  s.time = document.getElementById('sBed').value || s.time;
+  s.lead = sleepLead();
+  s.on = !s.on;
+  r.sleep = s;
+  setRem(r);
+  try {
+    await sleepNativeApply(true);
+    toast(s.on ? 'Плашка включена' : 'Плашка выключена');
+  } catch (e) {
+    // Точные будильники запрещены системой: пробуем неточные, иначе плашка
+    // не встанет вообще. Опоздание возможно — честно говорим.
+    try { await sleepNativeApply(false); toast('Точные будильники запрещены: плашка может опоздать'); }
+    catch (e2) { toast('Плашка не поставилась — уведомления выключены в настройках'); }
+  }
+}
+
+// Предпросмотр: разовое уведомление через 20 секунд. Нужен, чтобы увидеть,
+// как плашка выглядит и как звучит, не дожидаясь вечера: иначе человек
+// включает напоминание, а проверить его может только завтра.
+async function sleepPreview() {
+  const LN = sleepPlugin();
+  if (!LN) { toast('Плашка работает только в приложении на телефоне'); return; }
+  if (!await sleepEnsurePermission()) {
+    toast('Уведомления выключены — включите их в настройках телефона');
+    return;
+  }
+  const msg = sleepMessage(true);
+  await sleepChannel(LN);
+  try { await LN.cancel({ notifications: [{ id: SLEEP_TEST_ID }] }); } catch (e) {}
+  try {
+    await LN.schedule({ notifications: [{
+      id: SLEEP_TEST_ID,
+      channelId: SLEEP_CHANNEL,
+      title: 'Скоро отбой',
+      body: msg.body,
+      largeBody: msg.large,
+      smallIcon: 'stat_sleep',
+      iconColor: '#8b7bd8',
+      threadIdentifier: 'sleep',
+      schedule: { at: new Date(Date.now() + 20000), allowWhileIdle: true },
+    }] });
+    toast('Плашка придёт через 20 секунд');
+  } catch (e) { toast('Не удалось показать плашку'); }
+}
+
+document.getElementById('sBtn').addEventListener('click', sleepToggle);
+document.getElementById('sTest').addEventListener('click', sleepPreview);
+document.getElementById('sBed').addEventListener('change', () => {
+  const r = getRem();
+  const s = r.sleep || { time: '23:00', lead: 30, on: false };
+  s.time = document.getElementById('sBed').value;
+  r.sleep = s;
+  setRem(r);
+  if (s.on) sleepNativeApply(true).catch(() => {});
+});
+document.getElementById('sLead').addEventListener('change', () => {
+  const r = getRem();
+  const s = r.sleep || { time: '23:00', lead: 30, on: false };
+  s.lead = sleepLead();
+  r.sleep = s;
+  setRem(r);
+  if (s.on) sleepNativeApply(true).catch(() => {});
+});
+
+// Статистика пересчитывается вместе с остальным разбором.
+const _renderSleepHook = render;
+render = function () { _renderSleepHook(); renderSleep(); };
+syncSleepUI();
 
 function renderHero() {
   const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];

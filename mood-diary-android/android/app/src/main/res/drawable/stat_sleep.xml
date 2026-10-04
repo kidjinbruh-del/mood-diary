@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Иконка вечерней плашки: полумесяц со звездой.
+
+     Иконка уведомления — это силуэт, а не картинка приложения. Android
+     красит её в акцентный цвет (у нас #8b7bd8), и в плашке поверх окон
+     она читается как знак, а не как миниатюра запуска. Цветная иконка
+     приложения в этой роли выглядит случайно и не масштабируется.
+
+     Вектор 24×24dp — стандартная сетка для drawable-small иконок. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+
+    <!-- полумесяц -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M15.4,2.2a1,1 0 0,0 -1.2,1.5 8,8 0 1,1 -9.5,9.5 1,1 0 0,0 -1.5,1.2A10,10 0 1,0 15.4,2.2Z" />
+
+    <!-- звезда: точка вечернего сигнала -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M19.4,3.2 m-1.1,0 a1.1,1.1 0 1,0 2.2,0 a1.1,1.1 0 1,0 -2.2,0 Z" />
+</vector>

@@ -18,3 +18,5 @@ keystore.properties
 # os
 Thumbs.db
 .DS_Store
+# локальные страховки
+*.bak
